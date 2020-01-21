@@ -11,15 +11,12 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
-import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import java.awt.GridBagLayout;
-import java.awt.GridBagConstraints;
-import java.awt.Insets;
-import java.awt.ScrollPane;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
@@ -30,18 +27,18 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import javax.swing.border.LineBorder;
 
 public class WindowUI {
 
 	private JFrame frame;
-	private JTextField textField;
-	private JTextField textField_1;
-	private JTextField textField_2;
+	private JTextField textFieldRootPath;
+	private JTextField textFieldTargetString;
+	private JTextField textFieldSuffix;
 	private JProgressBar progressBar;
 	private JScrollPane scrollPane;
-	private JPanel locPanel;
+	private JPanel panelDisplayArea;
 	private ThreadShare threadShare = new ThreadShare();
+	private JTextField textFieldLog;
 
 	/**
 	 * Launch the application.
@@ -75,130 +72,169 @@ public class WindowUI {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout(0, 0));
 
-		JPanel panel = new JPanel();
-		frame.getContentPane().add(panel, BorderLayout.NORTH);
-		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+		JPanel panelInputArea = new JPanel();
+		frame.getContentPane().add(panelInputArea, BorderLayout.NORTH);
+		panelInputArea.setLayout(new BoxLayout(panelInputArea, BoxLayout.Y_AXIS));
 
-		JPanel panel_1 = new JPanel();
-		panel.add(panel_1);
-		panel_1.setLayout(new BoxLayout(panel_1, BoxLayout.X_AXIS));
+		JPanel panelInputArea_rootPath = new JPanel();
+		panelInputArea.add(panelInputArea_rootPath);
+		panelInputArea_rootPath.setLayout(new BoxLayout(panelInputArea_rootPath, BoxLayout.X_AXIS));
 
-		JLabel label = new JLabel("搜索根路径:");
-		panel_1.add(label);
+		JLabel labelRootPath = new JLabel("搜索根路径:");
+		panelInputArea_rootPath.add(labelRootPath);
 
-		textField = new JTextField();
-		textField.setColumns(10);
-		panel_1.add(textField);
+		textFieldRootPath = new JTextField();
+		textFieldRootPath.setColumns(10);
+		panelInputArea_rootPath.add(textFieldRootPath);
 
-		JPanel panel_2 = new JPanel();
-		panel.add(panel_2);
-		panel_2.setLayout(new BoxLayout(panel_2, BoxLayout.X_AXIS));
+		JPanel panelInputArea_targetString = new JPanel();
+		panelInputArea.add(panelInputArea_targetString);
+		panelInputArea_targetString.setLayout(new BoxLayout(panelInputArea_targetString, BoxLayout.X_AXIS));
 
-		JLabel lblNewLabel = new JLabel("目标字符串:");
-		panel_2.add(lblNewLabel);
+		JLabel labelTargetString = new JLabel("目标字符串:");
+		panelInputArea_targetString.add(labelTargetString);
 
-		textField_1 = new JTextField();
-		panel_2.add(textField_1);
-		textField_1.setColumns(10);
+		textFieldTargetString = new JTextField();
+		panelInputArea_targetString.add(textFieldTargetString);
+		textFieldTargetString.setColumns(10);
 
-		JPanel panel_3 = new JPanel();
-		panel.add(panel_3);
-		panel_3.setLayout(new BoxLayout(panel_3, BoxLayout.X_AXIS));
+		JPanel panelInputArea_suffixCheckBox = new JPanel();
+		panelInputArea.add(panelInputArea_suffixCheckBox);
+		panelInputArea_suffixCheckBox.setLayout(new BoxLayout(panelInputArea_suffixCheckBox, BoxLayout.X_AXIS));
 
-		JCheckBox chckbxNewCheckBox = new JCheckBox("指定文件后缀:");
-		chckbxNewCheckBox.addChangeListener(new ChangeListener() {
+		JCheckBox checkBoxSuffix = new JCheckBox("指定文件后缀:");
+		checkBoxSuffix.addChangeListener(new ChangeListener() {
 
 			@Override
 			public void stateChanged(ChangeEvent e) {
 				// TODO Auto-generated method stub
-				boolean checkBoxSelected = chckbxNewCheckBox.isSelected();
-				textField_2.setEditable(checkBoxSelected);
+				boolean checkBoxSelected = checkBoxSuffix.isSelected();
+				textFieldSuffix.setEditable(checkBoxSelected);
 			}
 		});
-		panel_3.add(chckbxNewCheckBox);
+		panelInputArea_suffixCheckBox.add(checkBoxSuffix);
 
-		textField_2 = new JTextField();
-		textField_2.setEditable(false);
-		panel_3.add(textField_2);
-		textField_2.setColumns(10);
+		textFieldSuffix = new JTextField();
+		textFieldSuffix.setEditable(false);
+		panelInputArea_suffixCheckBox.add(textFieldSuffix);
+		textFieldSuffix.setColumns(10);
 
 		progressBar = new JProgressBar(0, 100);
 		progressBar.setStringPainted(true);
 		progressBar.setValue(0);
 		progressBar.setForeground(new Color(34, 139, 34));
-		panel.add(progressBar);
+		panelInputArea.add(progressBar);
 
-		JPanel panel_4 = new JPanel();
-		frame.getContentPane().add(panel_4, BorderLayout.SOUTH);
-		panel_4.setLayout(new BorderLayout(0, 0));
+		JPanel panelBtnTextArea = new JPanel();
+		frame.getContentPane().add(panelBtnTextArea, BorderLayout.SOUTH);
+		panelBtnTextArea.setLayout(new BorderLayout(0, 0));
 
-		JButton btnNewButton = new JButton("开始");
-		btnNewButton.addActionListener(new ActionListener() {
+		JButton btnStart = new JButton("开始");
+		btnStart.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				String searchRootPath = textField.getText();
-				String toBeSearchedString = textField_1.getText();
+				removePreResult();
+				String searchRootPath = textFieldRootPath.getText();
+				String toBeSearchedString = textFieldTargetString.getText();
 				String[] suffixes = null;
-				String str = textField_2.getText();
+				String str = textFieldSuffix.getText();
 				if (!str.isEmpty()) {
 					suffixes = str.split("\\s+", -1);
 				}
 				startSearchThread(searchRootPath, toBeSearchedString, suffixes);
 			}
 		});
-		panel_4.add(btnNewButton, BorderLayout.EAST);
-		locPanel = new JPanel();
-		locPanel.setBorder(new LineBorder(new Color(0, 0, 0)));
-		locPanel.setLayout(new BoxLayout(locPanel, BoxLayout.Y_AXIS));
-		scrollPane = new JScrollPane(locPanel,JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		panelBtnTextArea.add(btnStart, BorderLayout.EAST);
+		
+		textFieldLog = new JTextField();
+		textFieldLog.setEditable(false);
+		panelBtnTextArea.add(textFieldLog, BorderLayout.CENTER);
+		textFieldLog.setColumns(10);
+		panelDisplayArea = new JPanel();
+		panelDisplayArea.setBorder(null);
+		panelDisplayArea.setLayout(new BoxLayout(panelDisplayArea, BoxLayout.Y_AXIS));
+		scrollPane = new JScrollPane(panelDisplayArea, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+				JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		frame.getContentPane().add(scrollPane, BorderLayout.CENTER);
 	}
 
 	public void startSearchThread(String searchRootPath, String toBeSearchedString, String[] suffixes) {
-		Map<String, Integer> mapFilePath2Line = new HashMap<String, Integer>();
-
-		ContentFinderThread contentFinderThread = new ContentFinderThread(searchRootPath, toBeSearchedString, suffixes,
-				mapFilePath2Line, threadShare);
-		FutureTask<Error> future = new FutureTask<>(contentFinderThread);
-		new Thread(future).start();
-		try {
-			Error result = Error.Unknown;
-			while (true) {
-				boolean isDone = future.isDone();
-				Integer progressObj = new Integer(0);
-				if(threadShare.getShareMemory() instanceof Integer ) {
-					progressObj = (Integer)(threadShare.getShareMemory());
-				}
-				progressBar.setValue(progressObj.intValue());
-				if (isDone) {
-					result = future.get();
-					break;
-				}
-			}
-
-			if (result == Error.Success) {
-				displayResult(mapFilePath2Line);
-			}
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		new ProgressBarRealized(searchRootPath, toBeSearchedString, suffixes).execute();
 	}
 
-	
-	
+	private void removePreResult() {
+		panelDisplayArea.removeAll();
+	}
+
 	private void displayResult(Map<String, Integer> mapFilePath2Line) {
-		locPanel.removeAll();
 		if (mapFilePath2Line == null || mapFilePath2Line.size() == 0) {
 			return;
 		}
 		for (Entry<String, Integer> entry : mapFilePath2Line.entrySet()) {
 			JButton jButton = new JButton();
 			jButton.setText(String.format("%s line:%d", entry.getKey(), entry.getValue()));
-			locPanel.add(jButton);
+			panelDisplayArea.add(jButton);
 		}
-		locPanel.updateUI();
+		panelDisplayArea.updateUI();
+	}
+
+	class ProgressBarRealized extends SwingWorker<Void, Integer> {
+		private String searchRootPath;
+		private String toBeSearchedString;
+		private String[] suffixes;
+		private Map<String, Integer> mapFilePath2Line = new HashMap<String, Integer>();
+
+		public ProgressBarRealized(String searchRootPath, String toBeSearchedString, String[] suffixes) {
+			this.searchRootPath = searchRootPath;
+			this.toBeSearchedString = toBeSearchedString;
+			this.suffixes = suffixes;
+		}
+
+		@Override
+		// 后台任务在此方法中实现
+		protected Void doInBackground() throws Exception {
+			ContentFinderThread contentFinderThread = new ContentFinderThread(searchRootPath, toBeSearchedString,
+					suffixes, mapFilePath2Line, threadShare);
+			FutureTask<Error> future = new FutureTask<>(contentFinderThread);
+			new Thread(future).start();
+			try {
+				Error result = Error.Unknown;
+				while (true) {
+					boolean isDone = future.isDone();
+					Integer progressObj = new Integer(0);
+					if (threadShare.getShareMemory() instanceof Integer) {
+						progressObj = (Integer) (threadShare.getShareMemory());
+						System.out.println("UI:" + progressObj.intValue());
+					}
+					publish(progressObj.intValue());// 将当前进度信息加入chunks中
+					if (isDone) {
+						result = future.get();
+						break;
+					}
+					Thread.sleep(1000);
+				}
+				if (result == Error.Success) {
+					displayResult(mapFilePath2Line);
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ExecutionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return null;
+		}
+
+		@Override
+		// 每次更新进度条的信息
+		protected void process(List<Integer> chunks) {
+			progressBar.setValue(chunks.get(chunks.size() - 1));
+		}
+
+		@Override
+		// 任务完成后返回一个信息
+		protected void done() {
+			
+		}
 	}
 }

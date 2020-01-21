@@ -6,10 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -101,8 +98,10 @@ public class ContentFinder {
 			Map<String, Integer> mapFilePath2Line) {
 		int preValue = -1;
 		for (int i = 0; i < allPaths.size(); i++) {
-			int progressValue = (int) (100.0 * ((i + 1) / allPaths.size()));
+			int progressValue = (int) (100.0 * (i + 1) / allPaths.size());
+			System.out.println("findThread1:"+progressValue);
 			if(preValue!=progressValue) {
+				System.out.println("findThread2:"+progressValue);
 				threadShare.setShareMemory(new Integer(progressValue));
 				preValue = progressValue;
 			}
