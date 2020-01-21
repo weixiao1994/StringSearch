@@ -18,6 +18,7 @@ import javax.swing.event.ChangeListener;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
+import java.awt.ScrollPane;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -29,6 +30,7 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import javax.swing.border.LineBorder;
 
 public class WindowUI {
 
@@ -37,7 +39,10 @@ public class WindowUI {
 	private JTextField textField_1;
 	private JTextField textField_2;
 	private JProgressBar progressBar;
-	private JPanel panel_5;
+	private JScrollPane scrollPane;
+	private JPanel locPanel;
+	private ThreadShare threadShare = new ThreadShare();
+
 	/**
 	 * Launch the application.
 	 */
@@ -122,11 +127,11 @@ public class WindowUI {
 		progressBar.setValue(0);
 		progressBar.setForeground(new Color(34, 139, 34));
 		panel.add(progressBar);
-		
+
 		JPanel panel_4 = new JPanel();
 		frame.getContentPane().add(panel_4, BorderLayout.SOUTH);
 		panel_4.setLayout(new BorderLayout(0, 0));
-		
+
 		JButton btnNewButton = new JButton("开始");
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -137,46 +142,63 @@ public class WindowUI {
 				if (!str.isEmpty()) {
 					suffixes = str.split("\\s+", -1);
 				}
-				startSearchThread(searchRootPath,toBeSearchedString,suffixes);
+				startSearchThread(searchRootPath, toBeSearchedString, suffixes);
 			}
 		});
-		panel_4.add(btnNewButton);
-		
-		panel_5 = new JPanel();
-		frame.getContentPane().add(panel_5, BorderLayout.WEST);
-		panel_5.setLayout(new BoxLayout(panel_5, BoxLayout.Y_AXIS));
+		panel_4.add(btnNewButton, BorderLayout.EAST);
+		locPanel = new JPanel();
+		locPanel.setBorder(new LineBorder(new Color(0, 0, 0)));
+		locPanel.setLayout(new BoxLayout(locPanel, BoxLayout.Y_AXIS));
+		scrollPane = new JScrollPane(locPanel,JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		frame.getContentPane().add(scrollPane, BorderLayout.CENTER);
 	}
 
 	public void startSearchThread(String searchRootPath, String toBeSearchedString, String[] suffixes) {
 		Map<String, Integer> mapFilePath2Line = new HashMap<String, Integer>();
-		ProgressListener listener = new ProgressListenerImpl(progressBar);
+
 		ContentFinderThread contentFinderThread = new ContentFinderThread(searchRootPath, toBeSearchedString, suffixes,
-				mapFilePath2Line, listener);
+				mapFilePath2Line, threadShare);
 		FutureTask<Error> future = new FutureTask<>(contentFinderThread);
 		new Thread(future).start();
-//		try {
-//			Error result = future.get();
-//			if(result == Error.Success) {
-//				displayResult(mapFilePath2Line);
-//			}
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ExecutionException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+		try {
+			Error result = Error.Unknown;
+			while (true) {
+				boolean isDone = future.isDone();
+				Integer progressObj = new Integer(0);
+				if(threadShare.getShareMemory() instanceof Integer ) {
+					progressObj = (Integer)(threadShare.getShareMemory());
+				}
+				progressBar.setValue(progressObj.intValue());
+				if (isDone) {
+					result = future.get();
+					break;
+				}
+			}
+
+			if (result == Error.Success) {
+				displayResult(mapFilePath2Line);
+			}
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
+
+	
 	
 	private void displayResult(Map<String, Integer> mapFilePath2Line) {
-		if(mapFilePath2Line==null||mapFilePath2Line.size()==0) {
+		locPanel.removeAll();
+		if (mapFilePath2Line == null || mapFilePath2Line.size() == 0) {
 			return;
 		}
-		for(Entry<String, Integer> entry:mapFilePath2Line.entrySet()) {
+		for (Entry<String, Integer> entry : mapFilePath2Line.entrySet()) {
 			JButton jButton = new JButton();
-			jButton.setText(String.format("%s line:%d", entry.getKey(),entry.getValue()));
-			panel_5.add(jButton);
+			jButton.setText(String.format("%s line:%d", entry.getKey(), entry.getValue()));
+			locPanel.add(jButton);
 		}
-		panel_5.updateUI();
+		locPanel.updateUI();
 	}
 }

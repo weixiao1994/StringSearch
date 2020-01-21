@@ -17,11 +17,11 @@ import java.util.Map.Entry;
 import java.util.Scanner;
 
 public class ContentFinder {
-
-	private int preProgressVal = -1;
 	
-	public ContentFinder(ProgressListener listener) {
-		this.addListener(listener);
+	private ThreadShare threadShare;
+	
+	public ContentFinder(ThreadShare threadShare) {
+		this.threadShare = threadShare;
 	}
 	
 	public static void main(String[] args) {
@@ -37,14 +37,15 @@ public class ContentFinder {
 			if (!inputStr.isEmpty()) {
 				suffixes = inputStr.split("\\s+", -1);
 			}
-			
-			ContentFinder contentFinder = new ContentFinder(null);
+
+			ContentFinder contentFinder = new ContentFinder(new ThreadShare());
 			List<String> allPaths = new LinkedList<String>();
 			if (Error.Success != contentFinder.listAllFiles(toBeSearchedString, searchRootPath, suffixes, allPaths)) {
 				return;
 			}
 			Map<String, Integer> mapFilePath2Line = new HashMap<String, Integer>();
-			if (Error.Success !=  contentFinder.findMatchedFile(toBeSearchedString, searchRootPath, allPaths, mapFilePath2Line)) {
+			if (Error.Success != contentFinder.findMatchedFile(toBeSearchedString, searchRootPath, allPaths,
+					mapFilePath2Line)) {
 				return;
 			}
 			if (mapFilePath2Line == null || mapFilePath2Line.size() == 0) {
@@ -60,7 +61,8 @@ public class ContentFinder {
 		}
 	}
 
-	public Error getFindResult(String searchRootPath, String toBeSearchedString, String[] suffixes,Map<String, Integer> mapFilePath2Line) {
+	public Error getFindResult(String searchRootPath, String toBeSearchedString, String[] suffixes,
+			Map<String, Integer> mapFilePath2Line) {
 		List<String> allPaths = new LinkedList<String>();
 		Error tmpResult = listAllFiles(toBeSearchedString, searchRootPath, suffixes, allPaths);
 		if (Error.Success != tmpResult) {
@@ -97,12 +99,14 @@ public class ContentFinder {
 
 	public Error findMatchedFile(String toBeSearchedString, String searchRootPath, List<String> allPaths,
 			Map<String, Integer> mapFilePath2Line) {
+		int preValue = -1;
 		for (int i = 0; i < allPaths.size(); i++) {
-			int progressValue = (int)(100.0 * (i+1) / allPaths.size());
-			if(preProgressVal!=progressValue) {
-				this.SetProgressBarValue(progressValue);
-				preProgressVal = progressValue;
+			int progressValue = (int) (100.0 * ((i + 1) / allPaths.size()));
+			if(preValue!=progressValue) {
+				threadShare.setShareMemory(new Integer(progressValue));
+				preValue = progressValue;
 			}
+			
 			int lineIndex = lineFound(allPaths.get(i), toBeSearchedString);
 			if (lineIndex != -1) {
 				mapFilePath2Line.put(allPaths.get(i), lineIndex);
@@ -166,49 +170,4 @@ public class ContentFinder {
 		return -1;
 	}
 
-	private Collection listeners;
-
-	/**
-	 * 添加事件
-	 * 
-	 * @param listener DoorListener
-	 */
-	public void addListener(ProgressListener listener) {
-		if (listeners == null) {
-			listeners = new HashSet();
-		}
-		listeners.add(listener);
-	}
-
-	/**
-	 * 移除事件
-	 * 
-	 * @param listener DoorListener
-	 */
-	public void removeListener(ProgressListener listener) {
-		if (listeners == null)
-			return;
-		listeners.remove(listener);
-	}
-
-	/**
-	 * 触发事件
-	 */
-	protected void SetProgressBarValue(int value) {
-		if (listeners == null)
-			return;
-		ProgressValueEvent event = new ProgressValueEvent(this, value);
-		notifyListeners(event);
-	}
-
-	/**
-	 * 通知所有的Listener
-	 */
-	private void notifyListeners(ProgressValueEvent event) {
-		Iterator iter = listeners.iterator();
-		while (iter.hasNext()) {
-			ProgressListener listener = (ProgressListener) iter.next();
-			listener.progressEvent(event);
-		}
-	}
 }
